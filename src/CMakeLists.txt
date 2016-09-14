@@ -13,7 +13,7 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   
   # UNIX
   if(UNIX)
-    set(GCC_CXX_FLAGS "-std=gnu++11 -m64 -O3 -funroll-loops")
+    set(GCC_CXX_FLAGS "-std=gnu++11 -D_GLIBCXX_USE_CXX11_ABI=0 -m64 -O3 -funroll-loops")
     set(GCC_CXX_FLAGS "${GCC_CXX_FLAGS} -fopenmp")
     set(GCC_CXX_FLAGS "${GCC_CXX_FLAGS} -lXi")
     set(GCC_CXX_FLAGS "${GCC_CXX_FLAGS} -lXxf86vm")
