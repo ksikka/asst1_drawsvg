@@ -1,65 +1,8 @@
 cmake_minimum_required(VERSION 2.8)
-project(Project1)
 
-# Check compiler
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
-
-  set(CLANG_CXX_FLAGS "-std=c++11 -m64 -O3 -funroll-loops")
-  set(CLANG_CXX_FLAGS "${CLANG_CXX_FLAGS} -Wno-narrowing")
-  set(CLANG_CXX_FLAGS "${CLANG_CXX_FLAGS} -Wno-deprecated-register")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CLANG_CXX_FLAGS}")
-
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-  
-  # UNIX
-  if(UNIX)
-    set(GCC_CXX_FLAGS "-std=gnu++11 -D_GLIBCXX_USE_CXX11_ABI=0 -m64 -O3 -funroll-loops")
-    set(GCC_CXX_FLAGS "${GCC_CXX_FLAGS} -fopenmp")
-    set(GCC_CXX_FLAGS "${GCC_CXX_FLAGS} -lXi")
-    set(GCC_CXX_FLAGS "${GCC_CXX_FLAGS} -lXxf86vm")
-    set(GCC_CXX_FLAGS "${GCC_CXX_FLAGS} -lXinerama") 
-    set(GCC_CXX_FLAGS "${GCC_CXX_FLAGS} -lXcursor") 
-    set(GCC_CXX_FLAGS "${GCC_CXX_FLAGS} -lXfixes") 
-    set(GCC_CXX_FLAGS "${GCC_CXX_FLAGS} -lXrandr") 
-    set(GCC_CXX_FLAGS "${GCC_CXX_FLAGS} -lXext")
-    set(GCC_CXX_FLAGS "${GCC_CXX_FLAGS} -lXrender") 
-    set(GCC_CXX_FLAGS "${GCC_CXX_FLAGS} -lX11")
-    set(GCC_CXX_FLAGS "${GCC_CXX_FLAGS} -lpthread") 
-    set(GCC_CXX_FLAGS "${GCC_CXX_FLAGS} -lxcb") 
-    set(GCC_CXX_FLAGS "${GCC_CXX_FLAGS} -lXau")  
-  endif(UNIX)
-
-  # Windows
-  # if(WIN32)
-  #   set(GCC_CXX_FLAGS "-std=gnu++11 -O3 -funroll-loops -fopenmp")
-  # endif(WIN32)
-
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_CXX_FLAGS}")
-
-endif()
-
-# Add modules
-list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/modules/")
-
-# Find dependencies
-find_package(OpenGL REQUIRED)
-find_package(Freetype REQUIRED)
-find_package(GLEW REQUIRED)
-find_package(GLFW REQUIRED)
-find_package(CMU462 REQUIRED)
-
-# Install settings
-set(CMAKE_INSTALL_PREFIX "${PROJECT_SOURCE_DIR}/../")
-
-# Building on osx 
-if(APPLE)
-  include_directories( "/System/Library/Frameworks" )
-  find_library (COCOA_LIBRARIES Cocoa)
-  find_library (IOKIT_LIBRARIES IOkit)
-  find_library (COREVIDEO_LIBRARIES CoreVideo)
-endif(APPLE)
-
+#-------------------------------------------------------------------------------
 # Set include directories
+#-------------------------------------------------------------------------------
 include_directories(
     ${FREETYPE_INCLUDE_DIRS}
     ${CMU462_INCLUDE_DIRS}
@@ -67,7 +10,9 @@ include_directories(
     ${GLFW_INCLUDE_DIRS}
 )
 
+#-------------------------------------------------------------------------------
 # Set link directories
+#-------------------------------------------------------------------------------
 link_directories(
     ${FREETYPE_LIBRARY_DIRS}
     ${CMU462_LIBRARY_DIRS}
@@ -107,7 +52,9 @@ include(hardware/hardware.cmake)
 # Import drawsvg reference
 include(reference/reference.cmake)
 
-# drawsvg executable
+#-------------------------------------------------------------------------------
+# Add executable
+#-------------------------------------------------------------------------------
 add_executable( drawsvg
     ${CMU462_DRAWSVG_SOURCE}
     ${CMU462_DRAWSVG_HEADER}
@@ -117,9 +64,9 @@ add_executable( drawsvg
 target_link_libraries( drawsvg drawsvg_hdwr drawsvg_ref
     ${FREETYPE_LIBRARIES}
     ${OPENGL_LIBRARIES}
-    ${CMU462_LIBRARIES}
-    ${GLEW_LIBRARIES}
-    ${GLFW_LIBRARIES}
+    CMU462 ${CMU462_LIBRARIES}
+    glew ${GLEW_LIBRARIES}
+    glfw ${GLFW_LIBRARIES}
 )
 
 if (APPLE) # Frameworks required on osx
@@ -151,5 +98,18 @@ target_link_libraries( drawsvg drawsvg_hdwr drawsvg_ref
 )
 endif()
 
-install(TARGETS drawsvg DESTINATION .)
+# Put executable in build directory root
+set(EXECUTABLE_OUTPUT_PATH ..)
 
+# Install to project root
+install(TARGETS drawsvg DESTINATION ${drawsvg_SOURCE_DIR})
+
+# Copy Freetype DLLs to the build directory
+if(WIN32)
+    foreach(FREETYPE_DLL ${FREETYPE_RUNTIMELIBS})
+        add_custom_command(TARGET drawsvg POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${FREETYPE_DLL}"
+                $<TARGET_FILE_DIR:drawsvg>)
+    endforeach(FREETYPE_DLL)
+endif(WIN32)

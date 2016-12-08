@@ -1,4 +1,5 @@
 #include "CMU462.h"
+#include "viewer.h"
 #include "drawsvg.h"
 
 #include <sys/stat.h>

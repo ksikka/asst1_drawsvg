@@ -1,6 +1,7 @@
 #ifndef CMU462_TEXTURE_H
 #define CMU462_TEXTURE_H
 
+#include <vector>
 #include "CMU462.h"
 
 namespace CMU462 {

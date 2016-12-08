@@ -1,3 +1,4 @@
+#include "GL/glew.h"
 #include "hardware_renderer.h"
 
 #include <cmath>
