@@ -41,4 +41,9 @@ else(DRAWSVG_BUILD_REFERENCE)
                  ${CMAKE_CURRENT_SOURCE_DIR}/reference/libdrawsvgref_osx.a)
   endif(APPLE)
 
+  if(WIN32)
+    set_property(TARGET drawsvg_ref PROPERTY IMPORTED_LOCATION
+                 ${CMAKE_CURRENT_SOURCE_DIR}/reference/drawsvg_ref.lib)
+  endif(WIN32)
+
 endif(DRAWSVG_BUILD_REFERENCE)

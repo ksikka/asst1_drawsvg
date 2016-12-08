@@ -10,6 +10,10 @@ include_directories(
     ${GLFW_INCLUDE_DIRS}
 )
 
+if (WIN32)
+    include_directories(dirent)
+endif(WIN32)
+
 #-------------------------------------------------------------------------------
 # Set link directories
 #-------------------------------------------------------------------------------
@@ -32,6 +36,10 @@ set(CMU462_DRAWSVG_SOURCE
     drawsvg.cpp
     main.cpp
 )
+
+if (WIN32)
+    list(APPEND CMU462_DRAWSVG_SOURCE dirent/dirent.c)
+endif(WIN32)
 
 # Set drawsvg header
 set(CMU462_DRAWSVG_HEADER
