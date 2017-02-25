@@ -244,9 +244,12 @@ void HardwareRenderer::draw_group( Group& group ) {
 void HardwareRenderer::rasterize_point(float x, float y, Color color) {
   // Task 1: 
   // Implement point rasterization
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
   glBegin(GL_POINTS);
+  glColor4f(color.r, color.g, color.b, color.a);
   glVertex2f(x,y);
-  glColor3f(color.r, color.g, color.b);
   glEnd();
 
 }
@@ -257,6 +260,16 @@ void HardwareRenderer::rasterize_line(float x0, float y0,
 
   // Task 1: 
   // Implement line rasterization
+  glEnable(GL_MULTISAMPLE);
+  glEnable(GL_LINE_SMOOTH);
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+  glBegin(GL_LINES);
+  glColor4f(color.r, color.g, color.b, color.a);
+  glVertex2f(x0,y0);
+  glVertex2f(x1,y1);
+  glEnd();
 
 }
 
@@ -266,6 +279,17 @@ void HardwareRenderer::rasterize_triangle(float x0, float y0,
                                           Color color) {
   // Task 1: 
   // Implement triangle rasterization
+  glEnable(GL_MULTISAMPLE);
+  glEnable(GL_LINE_SMOOTH);
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+  glBegin(GL_TRIANGLES);
+  glColor4f(color.r, color.g, color.b, color.a);
+  glVertex2f(x0,y0);
+  glVertex2f(x1,y1);
+  glVertex2f(x2,y2);
+  glEnd();
 
 }
 
