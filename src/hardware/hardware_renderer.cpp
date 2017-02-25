@@ -242,9 +242,12 @@ void HardwareRenderer::draw_group( Group& group ) {
 
 
 void HardwareRenderer::rasterize_point(float x, float y, Color color) {
-  
   // Task 1: 
   // Implement point rasterization
+  glBegin(GL_POINTS);
+  glVertex2f(x,y);
+  glColor3f(color.r, color.g, color.b);
+  glEnd();
 
 }
 
