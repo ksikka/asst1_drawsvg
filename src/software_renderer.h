@@ -114,6 +114,9 @@ class SoftwareRendererImp : public SoftwareRenderer {
   // rasterize a point
   void rasterize_point( float x, float y, Color color );
 
+  // paint
+  void paint_int( int x, int y, Color color );
+
   // rasterize a line
   void rasterize_line( float x0, float y0,
                        float x1, float y1,
