@@ -235,50 +235,52 @@ void SoftwareRendererImp::rasterize_point( float x, float y, Color color ) {
 }
 
 void SoftwareRendererImp::paint_int(int x, int y, Color color) {
+  paint_int(x, y, color, 1);
+}
+
+/** alpha is a scalar [0,1] multiplied by color.a */
+void SoftwareRendererImp::paint_int(int x, int y, Color color, float alpha) {
   render_target[4 * (x + y * target_w)    ] = (uint8_t) (color.r * 255);
   render_target[4 * (x + y * target_w) + 1] = (uint8_t) (color.g * 255);
   render_target[4 * (x + y * target_w) + 2] = (uint8_t) (color.b * 255);
-  render_target[4 * (x + y * target_w) + 3] = (uint8_t) (color.a * 255);
+  render_target[4 * (x + y * target_w) + 3] = (uint8_t) (alpha*color.a * 255);
 }
 
 void SoftwareRendererImp::rasterize_line( float x0f, float y0f,
                                           float x1f, float y1f,
                                           Color color) {
-  // int for bresenhams. would use float for xiaolin wu.
-  int x0 = (int) x0f;
-  int x1 = (int) x1f;
-  int y0 = (int) y0f;
-  int y1 = (int) y1f;
+
+  bool reflect = false;
+  // if |slope| > 1, reflect over y=x by setting a flag and inverting x,y coords
+  // note: also transforms vertical line to horizontal line
+  if (abs(y1f - y0f) > abs(x1f - x0f)) {
+    reflect = true;
+    float dumx0f = x0f;
+    x0f = y0f;
+    y0f = dumx0f;
+    float dumx1f = x1f;
+    x1f = y1f;
+    y1f = dumx1f;
+  };
+
+  // normalize pofloats so x0f,y0f to x1f,y1f is down to up
+  if (y1f < y0f) {
+    float dumxf = x0f;
+    x0f = x1f;
+    x1f = dumxf;
+    float dumyf = y0f;
+    y0f = y1f;
+    y1f = dumyf;
+  }
+
+  // truncate decimals: close enough
+  int x0 = x0f;
+  int x1 = x1f;
+  int y0 = y0f;
+  int y1 = y1f;
 
   int dx = x1 - x0;
   int dy = y1 - y0;
-
-  bool reflect = false;
-  // if slope is > 1, reflect over y=x by setting a flag and inverting x,y coords
-  // note: also transforms vertical line to horizontal line
-  if (abs(dy) > abs(dx)) {
-    reflect = true;
-    int dumx0 = x0;
-    x0 = y0;
-    y0 = dumx0;
-    int dumx1 = x1;
-    x1 = y1;
-    y1 = dumx1;
-    dx = x1 - x0;
-    dy = y1 - y0;
-  };
-
-  // normalize points so x0,y0 to x1,y1 is down to up
-  if (y1 < y0) {
-    int dumx = x0;
-    x0 = x1;
-    x1 = dumx;
-    int dumy = y0;
-    y0 = y1;
-    y1 = dumy;
-    dx = x1 - x0;
-    dy = y1 - y0;
-  }
 
   bool sweep_left = false;
   if (dx * dy < 0 || (dy == 0 && x1 < x0)) {
@@ -287,8 +289,7 @@ void SoftwareRendererImp::rasterize_line( float x0f, float y0f,
 
   int SWEEP_INCR = sweep_left ? -1 : 1;
   int abs_dx = abs(dx);
-  // you could improve accuracy by taking the float truncation (y1 - y1f) as prior error
-  int lp = 0;
+  int lp = (y1f - y1) * abs_dx;
   int x = x0;
   int ly = y0;
 
@@ -302,18 +303,26 @@ void SoftwareRendererImp::rasterize_line( float x0f, float y0f,
   // you could improve performance by pre-computing some of the values
   // and removing the conditionals via arith tricks and macros.
   while ((!sweep_left && x <= x1) || (sweep_left && x >= x1)) {
+    /*
+    p/abs_dx is our deviation from drawing on y.
+    p ranges from -abs_dx/2 to abs_dx/2
+    when we exceed that upper bound, we incr y.
+    */
     int p = lp + dy;
-    if (p > abs_dx/2) {
+    if (p >= abs_dx/2) {
       ly++;
       lp = p - abs_dx;
     } else {
       /* noop */
       lp = p;
     }
+    int newY = lp < 0 ? ly - 1 : ly + 1;
     if (reflect) {
-      paint_int(ly, x, color);
+      paint_int(ly, x, color, (1-abs(lp)/(float)abs_dx));
+      paint_int(newY, x, color, (abs(lp)/(float)abs_dx));
     } else {
-      paint_int(x, ly, color);
+      paint_int(x, ly, color, (1-abs(lp)/(float)abs_dx));
+      paint_int(x, newY, color, (abs(lp)/(float)abs_dx));
     }
     x += SWEEP_INCR;
   }

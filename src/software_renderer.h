@@ -116,6 +116,7 @@ class SoftwareRendererImp : public SoftwareRenderer {
 
   // paint
   void paint_int( int x, int y, Color color );
+  void paint_int( int x, int y, Color color, float alpha );
 
   // rasterize a line
   void rasterize_line( float x0, float y0,
