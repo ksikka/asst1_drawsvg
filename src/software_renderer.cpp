@@ -239,11 +239,11 @@ void SoftwareRendererImp::paint_int(int x, int y, Color color) {
 }
 
 /** alpha is a scalar [0,1] multiplied by color.a */
-void SoftwareRendererImp::paint_int(int x, int y, Color color, float alpha) {
+void SoftwareRendererImp::paint_int(int x, int y, Color color, float alphaMult) {
   render_target[4 * (x + y * target_w)    ] = (uint8_t) (color.r * 255);
   render_target[4 * (x + y * target_w) + 1] = (uint8_t) (color.g * 255);
   render_target[4 * (x + y * target_w) + 2] = (uint8_t) (color.b * 255);
-  render_target[4 * (x + y * target_w) + 3] = (uint8_t) (alpha*color.a * 255);
+  render_target[4 * (x + y * target_w) + 3] = (uint8_t) (color.a*alphaMult * 255);
 }
 
 void SoftwareRendererImp::rasterize_line( float x0f, float y0f,
@@ -332,9 +332,48 @@ void SoftwareRendererImp::rasterize_triangle( float x0, float y0,
                                               float x1, float y1,
                                               float x2, float y2,
                                               Color color ) {
-  // Task 3: 
-  // Implement triangle rasterization
+  // 1. create a bounding box of pixels, points of box are {min_x, max_x} X {min_y, max_y}
+  float min_x = min(min(x0, x1), x2);
+  float max_x = max(max(x0, x1), x2);
+  float min_y = min(min(y0, y1), y2);
+  float max_y = max(max(y0, y1), y2);
 
+  // 2. iterate over the pixels of the bounding box
+  for (int i = floor(min_x); i <= floor(max_x); i++) {
+    bool in_triangle = false;
+    for (int j = floor(min_y); j <= floor(max_y); j++) {
+      int x = min_x + i;
+      int y = min_y + j;
+      // 3. sample this.sample_rate^2 points in the pixel. weight the alpha by the coverage.
+      //  sr = 1 => .5
+      //  sr = 2 => .25
+      //  sr = 3 => .1666
+      float incr =  1.0 / (2*this->sample_rate);
+      int cover_hits = 0;
+      for (int si = 1; si <= this->sample_rate; si++) {
+        for (int sj = 1; sj <= this->sample_rate; sj++) {
+          // TODO implement point in triangle-test
+          if (sample_at(x + si*incr, y + sj*incr)) {
+            cover_hits++;
+          }
+        }
+      }
+      if (cover_hits > 0) {
+        float alphaMult = ((float)cover_hits) / (this-> sample_rate * this->sample_rate);
+
+        // 4. draw
+        paint_int(x, y, color, alphaMult);
+
+        // to help detect early-exit condition
+        in_triangle = true;
+      } else {
+        if (in_triangle) {
+          // 5. exit iteration early if you go from in the triangle to out of the triangle.
+          break;
+        }
+      }
+    }
+  }
 }
 
 void SoftwareRendererImp::rasterize_image( float x0, float y0,
