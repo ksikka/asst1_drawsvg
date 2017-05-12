@@ -40,23 +40,47 @@ void SoftwareRendererImp::draw_svg( SVG& svg ) {
 
 }
 
-void SoftwareRendererImp::set_sample_rate( size_t sample_rate ) {
+unsigned char* SoftwareRendererImp::create_supersampling_buf() {
+  int num_samples = this->sample_rate * this->sample_rate;
 
-  // Task 4: 
-  // You may want to modify this for supersampling support
+  size_t buf_size = num_samples * 4 * this->target_h * this->target_w;
+  cout << "Buf size: " << buf_size << "\n";
+  unsigned char* buf = (unsigned char *) malloc(buf_size);
+
+  if (buf == NULL) {
+    cout << "malloc failed\n";
+    exit(1);
+  }
+
+  memset(buf, 255, buf_size);
+  return buf;
+}
+
+void SoftwareRendererImp::set_sample_rate( size_t sample_rate ) {
+  // Task 4
+  if (sample_rate < 1) {
+    sample_rate = 1;
+  }
   this->sample_rate = sample_rate;
 
+  if (this->supersampling_target != NULL) {
+    free(this->supersampling_target);
+  }
+  this->supersampling_target = this->create_supersampling_buf();
 }
 
 void SoftwareRendererImp::set_render_target( unsigned char* render_target,
                                              size_t width, size_t height ) {
-
   // Task 4: 
   // You may want to modify this for supersampling support
   this->render_target = render_target;
   this->target_w = width;
   this->target_h = height;
 
+  if (this->supersampling_target != NULL) {
+    free(this->supersampling_target);
+  }
+  this->supersampling_target = this->create_supersampling_buf();
 }
 
 void SoftwareRendererImp::draw_element( SVGElement* element ) {
@@ -221,17 +245,19 @@ void SoftwareRendererImp::draw_group( Group& group ) {
 // below are all defined in screen space coordinates
 
 void SoftwareRendererImp::rasterize_point( float x, float y, Color color ) {
+  x *= sample_rate;
+  y *= sample_rate;
 
   // fill in the nearest pixel
   int sx = (int) floor(x);
   int sy = (int) floor(y);
 
   // check bounds
-  if ( sx < 0 || sx >= target_w ) return;
-  if ( sy < 0 || sy >= target_h ) return;
+  if ( sx < 0 || sx >= target_w*sample_rate ) return;
+  if ( sy < 0 || sy >= target_h*sample_rate ) return;
 
   // fill sample - NOT doing alpha blending!
-  paint_int(sx, sy, color);
+  paint_int(this->supersampling_target, sx, sy, color);
 }
 
 void SoftwareRendererImp::paint_int(int x, int y, Color color) {
@@ -246,9 +272,24 @@ void SoftwareRendererImp::paint_int(int x, int y, Color color, float alphaMult) 
   render_target[4 * (x + y * target_w) + 3] = (uint8_t) (color.a*alphaMult * 255);
 }
 
+/** for supersampling */
+void SoftwareRendererImp::paint_int(unsigned char* render_target, int x, int y, Color color) {
+  paint_int(this->supersampling_target, x, y, color, 1);
+}
+void SoftwareRendererImp::paint_int(unsigned char* render_target, int x, int y, Color color, float alphaMult) {
+  render_target[4 * (x + y * target_w*sample_rate)    ] = (uint8_t) (color.r * 255);
+  render_target[4 * (x + y * target_w*sample_rate) + 1] = (uint8_t) (color.g * 255);
+  render_target[4 * (x + y * target_w*sample_rate) + 2] = (uint8_t) (color.b * 255);
+  render_target[4 * (x + y * target_w*sample_rate) + 3] = (uint8_t) (color.a*alphaMult * 255);
+}
+
 void SoftwareRendererImp::rasterize_line( float x0f, float y0f,
                                           float x1f, float y1f,
                                           Color color) {
+  x0f *= sample_rate;
+  x1f *= sample_rate;
+  y0f *= sample_rate;
+  y1f *= sample_rate;
 
   bool reflect = false;
   // if |slope| > 1, reflect over y=x by setting a flag and inverting x,y coords
@@ -294,9 +335,9 @@ void SoftwareRendererImp::rasterize_line( float x0f, float y0f,
   int ly = y0;
 
   if (reflect) {
-    paint_int(ly, x, color);
+    paint_int(this->supersampling_target, ly, x, color);
   } else {
-    paint_int(x, ly, color);
+    paint_int(this->supersampling_target, x, ly, color);
   }
   x += SWEEP_INCR;
 
@@ -318,11 +359,11 @@ void SoftwareRendererImp::rasterize_line( float x0f, float y0f,
     }
     int newY = lp < 0 ? ly - 1 : ly + 1;
     if (reflect) {
-      paint_int(ly, x, color, (1-abs(lp)/(float)abs_dx));
-      paint_int(newY, x, color, (abs(lp)/(float)abs_dx));
+      paint_int(this->supersampling_target, ly, x, color, (1-abs(lp)/(float)abs_dx));
+      paint_int(this->supersampling_target, newY, x, color, (abs(lp)/(float)abs_dx));
     } else {
-      paint_int(x, ly, color, (1-abs(lp)/(float)abs_dx));
-      paint_int(x, newY, color, (abs(lp)/(float)abs_dx));
+      paint_int(this->supersampling_target, x, ly, color, (1-abs(lp)/(float)abs_dx));
+      paint_int(this->supersampling_target, x, newY, color, (abs(lp)/(float)abs_dx));
     }
     x += SWEEP_INCR;
   }
@@ -332,48 +373,51 @@ void SoftwareRendererImp::rasterize_triangle( float x0, float y0,
                                               float x1, float y1,
                                               float x2, float y2,
                                               Color color ) {
+  // for the supersampling implementation, pretend we zoomed in by sampling_rate times.
+  x0 *= this->sample_rate;
+  x1 *= this->sample_rate;
+  x2 *= this->sample_rate;
+  y0 *= this->sample_rate;
+  y1 *= this->sample_rate;
+  y2 *= this->sample_rate;
+
   // 1. create a bounding box of pixels, points of box are {min_x, max_x} X {min_y, max_y}
-  float min_x = min(min(x0, x1), x2);
-  float max_x = max(max(x0, x1), x2);
-  float min_y = min(min(y0, y1), y2);
-  float max_y = max(max(y0, y1), y2);
+  int min_x = floor(min(min(x0, x1), x2));
+  int max_x = ceil(max(max(x0, x1), x2));
+  int min_y = floor(min(min(y0, y1), y2));
+  int max_y = ceil(max(max(y0, y1), y2));
 
   // 2. iterate over the pixels of the bounding box
-  for (int i = floor(min_x); i <= floor(max_x); i++) {
+  for (int i = min_x; i <= max_x; i++) {
     bool in_triangle = false;
-    for (int j = floor(min_y); j <= floor(max_y); j++) {
-      int x = min_x + i;
-      int y = min_y + j;
-      // 3. sample this.sample_rate^2 points in the pixel. weight the alpha by the coverage.
-      //  sr = 1 => .5
-      //  sr = 2 => .25
-      //  sr = 3 => .1666
-      float incr =  1.0 / (2*this->sample_rate);
-      int cover_hits = 0;
-      for (int si = 1; si <= this->sample_rate; si++) {
-        for (int sj = 1; sj <= this->sample_rate; sj++) {
-          // TODO implement point in triangle-test
-          if (sample_at(x + si*incr, y + sj*incr)) {
-            cover_hits++;
-          }
-        }
-      }
-      if (cover_hits > 0) {
-        float alphaMult = ((float)cover_hits) / (this-> sample_rate * this->sample_rate);
-
-        // 4. draw
-        paint_int(x, y, color, alphaMult);
-
-        // to help detect early-exit condition
+    for (int j = min_y; j <= max_y; j++) {
+      // TODO implement point in triangle-test
+      if (point_in_triangle_test(x0,y0,x1,y1,x2,y2,i + 0.5, j + 0.5)) {
+        paint_int(this->supersampling_target, i, j, color);
         in_triangle = true;
       } else {
         if (in_triangle) {
-          // 5. exit iteration early if you go from in the triangle to out of the triangle.
+          // 5. exit the row early if you go from in the triangle to out of the triangle.
           break;
         }
       }
     }
   }
+}
+
+float point_directionality(float x0,float y0,float x1,float y1, float x, float y) {
+  float dx = x1 - x0;
+  float dy = y1 - y0;
+  return (x - x0) * dy - (y - y0) * dx;
+}
+
+bool SoftwareRendererImp::point_in_triangle_test( float x0, float y0,
+                             float x1, float y1,
+                             float x2, float y2,
+                             float x, float y) {
+  return point_directionality(x0,y0,x1,y1,x,y) <= 0 &&
+         point_directionality(x1,y1,x2,y2,x,y) < 0 &&
+         point_directionality(x2,y2,x0,y0,x,y) < 0 ;
 }
 
 void SoftwareRendererImp::rasterize_image( float x0, float y0,
@@ -386,11 +430,40 @@ void SoftwareRendererImp::rasterize_image( float x0, float y0,
 
 // resolve samples to render target
 void SoftwareRendererImp::resolve( void ) {
+  cout << "RESOLVE \n";
 
   // Task 4: 
   // Implement supersampling
   // You may also need to modify other functions marked with "Task 4".
-  return;
+  int r_sum = 0;
+  int g_sum = 0;
+  int b_sum = 0;
+  int a_sum = 0;
+
+  int samples = this->sample_rate * this->sample_rate;
+
+  // for each target pixel, average the samples in the zoomed-in box.
+  for (int i = 0; i < this->target_w; i++) {
+    for (int j = 0; j < this->target_h; j++) {
+      r_sum = 0;
+      g_sum = 0;
+      b_sum = 0;
+      a_sum = 0;
+
+      for (int si = 0; si < this->sample_rate; si++) {
+        for (int sj = 0; sj < this->sample_rate; sj++) {
+          // cout << "Index: "<< 4 * (i * sample_rate + (j*sample_rate + sj)*(target_w*sample_rate) + si) + 0 << "\n";
+          uint8_t alpha = supersampling_target[4 * (i * sample_rate + (j*sample_rate + sj)*(target_w*sample_rate) + si) + 3];
+          a_sum += alpha;
+          r_sum += alpha/255.0*supersampling_target[4 * (i * sample_rate + (j*sample_rate + sj)*(target_w*sample_rate) + si) + 0];
+          g_sum += alpha/255.0*supersampling_target[4 * (i * sample_rate + (j*sample_rate + sj)*(target_w*sample_rate) + si) + 1];
+          b_sum += alpha/255.0*supersampling_target[4 * (i * sample_rate + (j*sample_rate + sj)*(target_w*sample_rate) + si) + 2];
+        }
+      }
+
+      paint_int(i,j,Color(r_sum/samples/255.0, g_sum/samples/255.0, b_sum/samples/255.0, a_sum/samples/255.0));
+    }
+  }
 
 }
 

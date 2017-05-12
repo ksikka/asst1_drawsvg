@@ -66,7 +66,7 @@ class SoftwareRenderer : public SVGRenderer {
 class SoftwareRendererImp : public SoftwareRenderer {
  public:
 
-  SoftwareRendererImp( ) : SoftwareRenderer( ) { }
+  SoftwareRendererImp( ) : SoftwareRenderer( ) { supersampling_target = NULL;}
 
   // draw an svg input to render target
   void draw_svg( SVG& svg );
@@ -79,6 +79,11 @@ class SoftwareRendererImp : public SoftwareRenderer {
                           size_t width, size_t height );
 
  private:
+  unsigned char* supersampling_target;
+
+  // Init //
+  // allocates a buf of the correct size for the supersampling target
+  unsigned char* create_supersampling_buf();
 
   // Primitive Drawing //
 
@@ -117,6 +122,8 @@ class SoftwareRendererImp : public SoftwareRenderer {
   // paint
   void paint_int( int x, int y, Color color );
   void paint_int( int x, int y, Color color, float alpha );
+  void paint_int( unsigned char* render_target, int x, int y, Color color );
+  void paint_int( unsigned char* render_target, int x, int y, Color color, float alpha );
 
   // rasterize a line
   void rasterize_line( float x0, float y0,
@@ -136,6 +143,10 @@ class SoftwareRendererImp : public SoftwareRenderer {
 
   // resolve samples to render target
   void resolve( void );
+  bool point_in_triangle_test( float x0, float y0,
+                               float x1, float y1,
+                               float x2, float y2,
+                               float x, float y);
 
 }; // class SoftwareRendererImp
 
