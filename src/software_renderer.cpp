@@ -415,9 +415,14 @@ bool SoftwareRendererImp::point_in_triangle_test( float x0, float y0,
                              float x1, float y1,
                              float x2, float y2,
                              float x, float y) {
-  return point_directionality(x0,y0,x1,y1,x,y) <= 0 &&
-         point_directionality(x1,y1,x2,y2,x,y) < 0 &&
-         point_directionality(x2,y2,x0,y0,x,y) < 0 ;
+  // since there's no guarantee of clockwise ordering of points,
+  // just ensure all same directionality.
+  float d1 = point_directionality(x0,y0,x1,y1,x,y);;
+  float d2 = point_directionality(x1,y1,x2,y2,x,y);
+  float d3 = point_directionality(x2,y2,x0,y0,x,y);
+
+  return (d1 <= 0 && d2 <= 0 && d3 <= 0) ||
+         (d1 >= 0 && d2 >= 0 && d3 >= 0);
 }
 
 void SoftwareRendererImp::rasterize_image( float x0, float y0,
@@ -430,8 +435,6 @@ void SoftwareRendererImp::rasterize_image( float x0, float y0,
 
 // resolve samples to render target
 void SoftwareRendererImp::resolve( void ) {
-  cout << "RESOLVE \n";
-
   // Task 4: 
   // Implement supersampling
   // You may also need to modify other functions marked with "Task 4".
