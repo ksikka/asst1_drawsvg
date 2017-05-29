@@ -72,6 +72,7 @@ void Sampler2DImp::generate_mips(Texture& tex, int startLevel) {
     MipLevel& mip = tex.mipmap[i];
 
     for(size_t i = 0; i < 4 * mip.width * mip.height; i += 4) {
+      // in real impl, compute color by bilinear interpolation on previous level's four pixels nearest the w,h
       float_to_uint8( &mip.texels[i], &c.r );
     }
   }
@@ -82,10 +83,17 @@ Color Sampler2DImp::sample_nearest(Texture& tex,
                                    float u, float v, 
                                    int level) {
 
-  // Task 6: Implement nearest neighbour interpolation
-  
-  // return magenta for invalid level
-  return Color(1,0,1,1);
+  // Task 6: Implement nearest neighbour "interpolation"
+  if (level < 0 || level >= tex.mipmap.size()) {
+    // return magenta for invalid level
+    return Color(1,0,1,1);
+  }
+
+  // map u,v to texel coords
+  // do index math to get access to the nearest texel:
+  // floor(u*tex.width-1), floor(v*tex.height-1)
+  // (be careful of off by one)
+  // uint8 to float that texel. return..
 
 }
 
@@ -97,6 +105,10 @@ Color Sampler2DImp::sample_bilinear(Texture& tex,
 
   // return magenta for invalid level
   return Color(1,0,1,1);
+  // map u,v to texel coords
+  // do index math to get access to nearest texel and its neighbors
+  // compute weight based on distance of u,v to texel center.
+  // return weighted average of color components.
 
 }
 
@@ -108,6 +120,11 @@ Color Sampler2DImp::sample_trilinear(Texture& tex,
 
   // return magenta for invalid level
   return Color(1,0,1,1);
+
+  // u_scale and v_scale help to determine the level as a float.
+  // then bilinear sample the floor(level) and ceil(level).
+  // then linear interpolate between those two colors based on where
+  // the float level falls between floor and ceiling.
 
 }
 

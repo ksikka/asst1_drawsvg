@@ -270,6 +270,7 @@ void SoftwareRendererImp::paint_int(int x, int y, Color color) {
 
 /** alpha is a scalar [0,1] multiplied by color.a */
 void SoftwareRendererImp::paint_int(int x, int y, Color color, float alphaMult) {
+  // TODO read values to perform simple alpha blending
   render_target[4 * (x + y * target_w)    ] = (uint8_t) (color.r * 255);
   render_target[4 * (x + y * target_w) + 1] = (uint8_t) (color.g * 255);
   render_target[4 * (x + y * target_w) + 2] = (uint8_t) (color.b * 255);
@@ -281,6 +282,7 @@ void SoftwareRendererImp::paint_int(unsigned char* render_target, int x, int y, 
   paint_int(this->supersampling_target, x, y, color, 1);
 }
 void SoftwareRendererImp::paint_int(unsigned char* render_target, int x, int y, Color color, float alphaMult) {
+  // TODO read values to perform simple alpha blending
   render_target[4 * (x + y * target_w*sample_rate)    ] = (uint8_t) (color.r * 255);
   render_target[4 * (x + y * target_w*sample_rate) + 1] = (uint8_t) (color.g * 255);
   render_target[4 * (x + y * target_w*sample_rate) + 2] = (uint8_t) (color.b * 255);
@@ -385,23 +387,22 @@ void SoftwareRendererImp::rasterize_triangle( float x0, float y0,
   y1 *= this->sample_rate;
   y2 *= this->sample_rate;
 
-  // 1. create a bounding box of pixels, points of box are {min_x, max_x} X {min_y, max_y}
+  // create a bounding box of pixels, points of box are {min_x, max_x} X {min_y, max_y}
   int min_x = floor(min(min(x0, x1), x2));
   int max_x = ceil(max(max(x0, x1), x2));
   int min_y = floor(min(min(y0, y1), y2));
   int max_y = ceil(max(max(y0, y1), y2));
 
-  // 2. iterate over the pixels of the bounding box
+  // iterate over the pixels of the bounding box
   for (int i = min_x; i <= max_x; i++) {
     bool in_triangle = false;
     for (int j = min_y; j <= max_y; j++) {
-      // TODO implement point in triangle-test
       if (point_in_triangle_test(x0,y0,x1,y1,x2,y2,i + 0.5, j + 0.5)) {
         paint_int(this->supersampling_target, i, j, color);
         in_triangle = true;
       } else {
         if (in_triangle) {
-          // 5. exit the row early if you go from in the triangle to out of the triangle.
+          // exit the row early if you go from in the triangle to out of the triangle.
           break;
         }
       }
@@ -434,7 +435,11 @@ void SoftwareRendererImp::rasterize_image( float x0, float y0,
                                            Texture& tex ) {
   // Task 6: 
   // Implement image rasterization
-
+  printf("(%u, %u)\n", tex.width, tex.height);
+  printf("(%u, %u)\n", tex.mipmap[0].width, tex.mipmap[0].height);
+  // compute u,v
+  // sample bilinear or nn or trilinear - compute u/v scaling factor.
+  // paint the framebuffer that color.
 }
 
 // resolve samples to render target
